@@ -40,7 +40,7 @@ app.post("/api/v1/register", async (req, res) => {
 
   console.log(req.body)
   if (!full_name || !wa_number || !education || !email || !password) {
-    res.status(400).send("Error, null credential");
+    res.send("Error, null credential");
     return;
   }
 
@@ -55,14 +55,14 @@ app.post("/api/v1/register", async (req, res) => {
     connection.query(query, values, (err) => {
       if (err) {
         console.error('Error inserting data into the database:', err);
-        res.status(500).send("Error registering user");
+        res.send("Error registering user");
         return;
       }
-      res.status(200).send("Registration successful");
+      res.send("Registration successful");
     });
   } catch (err) {
     console.error('Error hashing password:', err);
-    res.status(500).send("Error registering user");
+    res.send("Error registering user");
   }
 });
 
