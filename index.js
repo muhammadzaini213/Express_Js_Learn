@@ -5,8 +5,6 @@ const path = require("path");
 const app = express();
 require('dotenv').config();
 
-
-
 var corsOptions = {
  // origin: "http://localhost:8081"
   origin: true
@@ -62,7 +60,7 @@ const values = [
   full_name,
   email,
   password,
-  full_name,  // It looks like you're inserting full_name twice; ensure this is intentional
+  full_name,
   education,
   wa_number,
   '2024-08-19 00:00:00',
