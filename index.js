@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql");
 const path = require("path");
-const bcrypt = require('bcrypt'); // For password hashing
+//const bcrypt = require('bcrypt'); // For password hashing
 require('dotenv').config();
 
 const app = express();
@@ -43,12 +43,12 @@ app.post("/api/v1/register", async (req, res) => {
   }
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+    //const hashedPassword = await bcrypt.hash(password, 10);
 
     const query = `INSERT INTO users (username, email, password, fullname, education, wa_number, createdAt, updatedAt) 
                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`;
 
-    const values = [full_name, email, hashedPassword, full_name, education, wa_number];
+    const values = [full_name, email, password, full_name, education, wa_number];
 
     connection.query(query, values, (err) => {
       if (err) {
