@@ -11,7 +11,7 @@ const corsOptions = {
   origin: "http://localhost:8081", // Set your allowed origin here
 };
 
-app.use(cors(corsOptions)); // Use CORS middleware
+//app.use(cors(corsOptions)); // Use CORS middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
