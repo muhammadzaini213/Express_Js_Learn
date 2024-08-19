@@ -54,18 +54,29 @@ app.post("/api/v1/register", (req, res) => {
     return;
    }
 
-const query = `INSERT INTO 'users' ('id', 'username', 'email', 'password', 'fullname', 'education', 'wa_number', 'createdAt', 'updatedAt') VALUES ('124567890', '${full_name}', '${email}', '${password}', '${full_name}', '${education}', '${wa_number}', '2024-08-19 00:00:00', '2024-08-19 00:00:00');`
+const query = `INSERT INTO users (id, username, email, password, fullname, education, wa_number, createdAt, updatedAt) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error inserting data into the database:', err);
-      res.status(500).send("Error registering user");
-      return;
-    }
-    console.log("Register success");
-    res.status(200).send("Registration successful");
-  });
+const values = [
+  '124567890',
+  full_name,
+  email,
+  password,
+  full_name,  // It looks like you're inserting full_name twice; ensure this is intentional
+  education,
+  wa_number,
+  '2024-08-19 00:00:00',
+  '2024-08-19 00:00:00'
+];
 
+connection.query(query, values, (err, results) => {
+  if (err) {
+    console.error('Error inserting data into the database:', err);
+    res.status(500).send("Error registering user");
+    return;
+  }
+  console.log("Register success");
+  res.status(200).send("Registration successful");
 });
 
 app.post("api/v1/login", (req, res) => {
