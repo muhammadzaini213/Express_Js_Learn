@@ -37,6 +37,8 @@ connection.connect((err) => {
 app.post("/api/v1/register", async (req, res) => {
   const { full_name, wa_number, education, email, password } = req.body;
 
+
+  console.log(req.body)
   if (!full_name || !wa_number || !education || !email || !password) {
     res.status(400).send("Error, null credential");
     return;
