@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql");
 const path = require("path");
-//const bcrypt = require('bcrypt'); // For password hashing
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const app = express();
@@ -37,20 +37,21 @@ connection.connect((err) => {
 app.post("/api/v1/register", async (req, res) => {
   const { full_name, wa_number, education, email, password } = req.body;
 
-
-  console.log(req.body)
+  console.log(req.body);
   if (!full_name || !wa_number || !education || !email || !password) {
     res.send("Error, null credential");
     return;
   }
 
   try {
-    //const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash the email and password
+    const hashedEmail = await bcrypt.hash(email, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const query = `INSERT INTO users (username, email, password, fullname, education, wa_number, createdAt, updatedAt) 
                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`;
 
-    const values = [full_name, email, password, full_name, education, wa_number];
+    const values = [full_name, hashedEmail, hashedPassword, full_name, education, wa_number];
 
     connection.query(query, values, (err) => {
       if (err) {
@@ -61,7 +62,7 @@ app.post("/api/v1/register", async (req, res) => {
       res.send("Registration successful");
     });
   } catch (err) {
-    console.error('Error hashing password:', err);
+    console.error('Error hashing email or password:', err);
     res.send("Error registering user");
   }
 });
