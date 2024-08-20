@@ -99,16 +99,15 @@ if (!waNumberRegex.test(wa_number)) {
     res.send("Error registering user");
   }
 });
+
 app.post("/api/v1/login", (req, res) => {
   const { email, password } = req.body;
 
-  // Validate that email and password are provided
   if (!email || !password) {
     res.status(400).send("Email and password are required");
     return;
   }
 
-  // Validate the email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     res.status(400).send("Invalid email format");
@@ -123,13 +122,12 @@ app.post("/api/v1/login", (req, res) => {
       return;
     }
 
-    // Check if email exists in the database
     if (results.length === 0) {
       res.status(401).send("Invalid credentials");
       return;
     }
 
-    // Verify password
+    // Compare the provided password with the hashed password stored in the database
     try {
       const match = await bcrypt.compare(password, results[0].password);
       if (match) {
