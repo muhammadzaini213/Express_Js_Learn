@@ -101,7 +101,6 @@ res.send("All credentials are valid");
     res.send("Error registering user");
   }
 });
-
 app.post("/api/v1/login", (req, res) => {
   const { email, password } = req.body;
 
