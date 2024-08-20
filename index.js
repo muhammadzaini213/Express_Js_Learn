@@ -3,6 +3,7 @@ const cors = require("cors");
 const mysql = require("mysql");
 const path = require("path");
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -34,57 +35,56 @@ connection.connect((err) => {
   console.log('Connected to the database.');
 });
 
+// Helper functions for encryption and decryption
+function encrypt(text) {
+  const cipher = crypto.createCipher('aes-256-cbc', process.env.SECRET_KEY);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return encrypted;
+}
+
+function decrypt(text) {
+  const decipher = crypto.createDecipher('aes-256-cbc', process.env.SECRET_KEY);
+  let decrypted = decipher.update(text, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+
 app.post("/api/v1/register", async (req, res) => {
   const { full_name, wa_number, education, email, password } = req.body;
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const waNumberRegex = /^\d+$/;
 
-const waNumberRegex = /^\d+$/;
+  if (!full_name || !wa_number || !education || !email || !password) {
+    res.send("Error, null credential");
+    return;
+  }
 
-if (
-  !full_name || 
-  !wa_number || 
-  !education || 
-  !email || 
-  !password
-) {
-  res.send("Error, null credential");
-  return;
-}
+  if (full_name.length > 30 || wa_number.length > 30 || education.length > 30 || email.length > 30 || password.length > 30) {
+    res.send("Error, fields cannot exceed 30 characters");
+    return;
+  }
 
-// Check if each field is within the 30 character limit
-if (
-  full_name.length > 30 || 
-  wa_number.length > 30 || 
-  education.length > 30 || 
-  email.length > 30 || 
-  password.length > 30
-) {
-  res.send("Error, fields cannot exceed 30 characters");
-  return;
-}
+  if (!emailRegex.test(email)) {
+    res.send("Error, invalid email format");
+    return;
+  }
 
-// Validate the email format
-if (!emailRegex.test(email)) {
-  res.send("Error, invalid email format");
-  return;
-}
-
-// Validate the WhatsApp number format (must be numeric)
-if (!waNumberRegex.test(wa_number)) {
-  res.send("Error, WhatsApp number must be numeric");
-  return;
-}
+  if (!waNumberRegex.test(wa_number)) {
+    res.send("Error, WhatsApp number must be numeric");
+    return;
+  }
 
   try {
-    // Hash the email and password
     const hashedPassword = await bcrypt.hash(password, 10);
     const hashedNumber = await bcrypt.hash(wa_number, 10);
+    const encryptedEmail = encrypt(email);
 
     const query = `INSERT INTO users (username, email, password, fullname, education, wa_number, createdAt, updatedAt) 
                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`;
 
-    const values = [full_name, email, hashedPassword, full_name, education, hashedNumber];
+    const values = [full_name, encryptedEmail, hashedPassword, full_name, education, hashedNumber];
 
     connection.query(query, values, (err) => {
       if (err) {
@@ -103,11 +103,13 @@ if (!waNumberRegex.test(wa_number)) {
 app.post("/api/v1/login", (req, res) => {
   const { email, password } = req.body;
 
-  // Log the received password for debugging (remove in production)
   console.log("Received password:", password);
 
+  // Encrypt the email to match the stored encrypted email
+  const encryptedEmail = encrypt(email);
+
   const query = 'SELECT password FROM users WHERE email = ?';
-  connection.query(query, [email], async (err, results) => {
+  connection.query(query, [encryptedEmail], async (err, results) => {
     if (err) {
       console.error('Error querying database:', err);
       res.status(500).send("Error logging in");
@@ -120,7 +122,6 @@ app.post("/api/v1/login", (req, res) => {
     }
 
     try {
-      // Log the hashed password from the database for debugging (remove in production)
       console.log("Stored hashed password:", results[0].password);
 
       const match = await bcrypt.compare(password, results[0].password);
@@ -135,11 +136,9 @@ app.post("/api/v1/login", (req, res) => {
     }
   });
 });
+
 app.put("/api/v1/reset-password", (req, res) => {
   const { email, otp, new_password } = req.body;
-
-  // Implementation for OTP validation and password reset goes here
-  // This usually involves additional logic to validate OTP and update the password
 
   res.status(501).send("Password reset not implemented yet");
 });
@@ -148,4 +147,3 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
- 
