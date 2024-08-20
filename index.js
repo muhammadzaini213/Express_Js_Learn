@@ -37,12 +37,46 @@ connection.connect((err) => {
 app.post("/api/v1/register", async (req, res) => {
   const { full_name, wa_number, education, email, password } = req.body;
 
-  console.log(req.body);
-  if (!full_name || !wa_number || !education || !email || !password) {
-    res.send("Error, null credential");
-    return;
-  }
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const waNumberRegex = /^\d+$/;
+
+if (
+  !full_name || 
+  !wa_number || 
+  !education || 
+  !email || 
+  !password
+) {
+  res.send("Error, null credential");
+  return;
+}
+
+// Check if each field is within the 30 character limit
+if (
+  full_name.length > 30 || 
+  wa_number.length > 30 || 
+  education.length > 30 || 
+  email.length > 30 || 
+  password.length > 30
+) {
+  res.send("Error, fields cannot exceed 30 characters");
+  return;
+}
+
+// Validate the email format
+if (!emailRegex.test(email)) {
+  res.send("Error, invalid email format");
+  return;
+}
+
+// Validate the WhatsApp number format (must be numeric)
+if (!waNumberRegex.test(wa_number)) {
+  res.send("Error, WhatsApp number must be numeric");
+  return;
+}
+
+res.send("All credentials are valid");
   try {
     // Hash the email and password
     const hashedEmail = await bcrypt.hash(email, 10);
