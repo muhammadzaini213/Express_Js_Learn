@@ -76,7 +76,6 @@ if (!waNumberRegex.test(wa_number)) {
   return;
 }
 
-res.send("All credentials are valid");
   try {
     // Hash the email and password
     const hashedEmail = await bcrypt.hash(email, 10);
