@@ -47,11 +47,12 @@ app.post("/api/v1/register", async (req, res) => {
     // Hash the email and password
     const hashedEmail = await bcrypt.hash(email, 10);
     const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedNumber = await bcrypt.hash(wa_number, 10);
 
     const query = `INSERT INTO users (username, email, password, fullname, education, wa_number, createdAt, updatedAt) 
                    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`;
 
-    const values = [full_name, hashedEmail, hashedPassword, full_name, education, wa_number];
+    const values = [full_name, hashedEmail, hashedPassword, full_name, education, hashedNumber];
 
     connection.query(query, values, (err) => {
       if (err) {
