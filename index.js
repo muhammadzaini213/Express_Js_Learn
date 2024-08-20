@@ -103,16 +103,8 @@ if (!waNumberRegex.test(wa_number)) {
 app.post("/api/v1/login", (req, res) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
-    res.status(400).send("Email and password are required");
-    return;
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    res.status(400).send("Invalid email format");
-    return;
-  }
+  // Log the received password for debugging (remove in production)
+  console.log("Received password:", password);
 
   const query = 'SELECT password FROM users WHERE email = ?';
   connection.query(query, [email], async (err, results) => {
@@ -127,8 +119,10 @@ app.post("/api/v1/login", (req, res) => {
       return;
     }
 
-    // Compare the provided password with the hashed password stored in the database
     try {
+      // Log the hashed password from the database for debugging (remove in production)
+      console.log("Stored hashed password:", results[0].password);
+
       const match = await bcrypt.compare(password, results[0].password);
       if (match) {
         res.status(200).send("Login successful");
@@ -141,7 +135,6 @@ app.post("/api/v1/login", (req, res) => {
     }
   });
 });
-
 app.put("/api/v1/reset-password", (req, res) => {
   const { email, otp, new_password } = req.body;
 
