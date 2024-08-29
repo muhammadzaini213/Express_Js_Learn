@@ -3,8 +3,8 @@ const cors = require("cors");
 const mysql = require("mysql");
 const jwt = require("jsonwebtoken");
 const path = require("path");
+const crypto = require("crypto");
 const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
@@ -222,10 +222,17 @@ function authenticateJWT(req, res, next) {
 }
 
 
-app.put("/api/v1/reset-password", (req, res) => {
-  const { email, otp, new_password } = req.body;
+const generateOTP = () => {
+    return crypto.randomInt(10000000, 99999999).toString(); // 6-digit OTP
+};
 
-  res.status(501).send("Password reset not implemented yet");
+app.post("/api/v1/reset-password-otp", (req, res) => {
+ const { email } = req.body;
+ 
+})
+
+app.put("/api/v1/reset-password", (req, res) => {
+  const { email, otp} = req.body;
 });
 
 // Middleware to verify JWT
