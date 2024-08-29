@@ -124,9 +124,17 @@ app.post("/api/v1/register", async (req, res) => {
   }
 });
 
-const JWT_SECRET = "your-very-secure-secret"; // Replace with a secure key
+const JWT_SECRET = process.env.JWT_SECRET; // Replace with a secure key
 
-// Login route
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH;
+
+
+function generateTokens(user) {
+  const accessToken = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: '15m' }); // Short-lived
+  const refreshToken = jwt.sign({ email: user.email }, JWT_REFRESH_SECRET, { expiresIn: '7d' }); // Longer-lived
+  return { accessToken, refreshToken };
+}
+
 app.post("/api/v1/login", (req, res) => {
   const { email, password } = req.body;
 
@@ -153,13 +161,24 @@ app.post("/api/v1/login", (req, res) => {
 
       const match = await bcrypt.compare(password, results[0].password);
       if (match) {
-        // Generate JWT on successful login
-        const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
+        // Generate Access and Refresh Tokens on successful login
+        const accessToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: '15m' }); // Short-lived access token
+        const refreshToken = jwt.sign({ email }, JWT_REFRESH_SECRET, { expiresIn: '7d' }); // Long-lived refresh token
 
-        // Send the token to the client
+        // Optionally store refresh token in the database
+        const storeRefreshTokenQuery = `UPDATE users SET refresh_token = ? WHERE email = ?`;
+        connection.query(storeRefreshTokenQuery, [refreshToken, encryptedEmail], (err) => {
+          if (err) {
+            console.error('Error storing refresh token:', err);
+            return res.status(500).send("Error logging in");
+          }
+        });
+
+        // Send the tokens to the client
         res.status(200).json({
           message: "Login successful",
-          token: token
+          accessToken: accessToken,
+          refreshToken: refreshToken // Send refresh token to the client
         });
       } else {
         res.status(401).send("Invalid credentials");
@@ -207,7 +226,7 @@ function authenticateJWT(req, res, next) {
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
-        return res.status(403).send("Invalid token");
+        return res.status(403).send("Invalid or expired access token");
       }
 
       req.user = user; // Attach the decoded token data (e.g., email) to the request
@@ -218,17 +237,35 @@ function authenticateJWT(req, res, next) {
   }
 }
 
-// Protected route (e.g., accessing course content or secret chat)
-app.get("/api/v1/protected", authenticateJWT, (req, res) => {
-  res.status(200).send(`Welcome to the protected route, ${req.user.email}`);
+app.post("/api/v1/refresh-token", (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).send("Refresh token required");
+  }
+
+  // Verify the refresh token
+  jwt.verify(refreshToken, JWT_REFRESH_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).send("Invalid or expired refresh token");
+    }
+
+    // Optionally check if the refresh token matches the one in the database
+    const query = `SELECT refresh_token FROM users WHERE email = ?`;
+    connection.query(query, [encrypt(user.email)], (err, results) => {
+      if (err || results.length === 0 || results[0].refresh_token !== refreshToken) {
+        return res.status(403).send("Invalid refresh token");
+      }
+
+      // Generate a new access token
+      const newAccessToken = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: '15m' });
+
+      res.status(200).json({
+        accessToken: newAccessToken,
+      });
+    });
+  });
 });
-
-// Protected route for secret chat
-app.get("/api/v1/chat", authenticateJWT, (req, res) => {
-  res.status(200).send(`Secret chat access granted for user: ${req.user.email}`);
-});
-
-
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
