@@ -161,28 +161,27 @@ app.post("/api/v1/login", (req, res) => {
 
       const match = await bcrypt.compare(password, results[0].password);
       if (match) {
-        // Generate Access and Refresh Tokens on successful login
-        const accessToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: '15m' }); // Short-lived access token
-        const refreshToken = jwt.sign({ email }, JWT_REFRESH_SECRET, { expiresIn: '7d' }); // Long-lived refresh token
+  const accessToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: '15m' });
+  const refreshToken = jwt.sign({ email }, JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
-        // Optionally store refresh token in the database
-        const storeRefreshTokenQuery = `UPDATE users SET refresh_token = ? WHERE email = ?`;
-        connection.query(storeRefreshTokenQuery, [refreshToken, encryptedEmail], (err) => {
-          if (err) {
-            console.error('Error storing refresh token:', err);
-            return res.status(500).send("Error logging in");
-          }
-        });
+  // Store refresh token and only send the response after successful update
+  const storeRefreshTokenQuery = `UPDATE users SET refresh_token = ? WHERE email = ?`;
+  connection.query(storeRefreshTokenQuery, [refreshToken, encryptedEmail], (err) => {
+    if (err) {
+      console.error('Error storing refresh token:', err);
+      return res.status(500).send("Error logging in");  // Handle the error and exit
+    }
 
-        // Send the tokens to the client
-        res.status(200).json({
-          message: "Login successful",
-          accessToken: accessToken,
-          refreshToken: refreshToken // Send refresh token to the client
-        });
-      } else {
-        res.status(401).send("Invalid credentials");
-      }
+    // Send the response only after the refresh token is stored
+    res.status(200).json({
+      message: "Login successful",
+      accessToken: accessToken,
+      refreshToken: refreshToken
+    });
+  });
+} else {
+  res.status(401).send("Invalid credentials");
+}
     } catch (err) {
       console.error('Error comparing passwords:', err);
       res.status(500).send("Error logging in");
