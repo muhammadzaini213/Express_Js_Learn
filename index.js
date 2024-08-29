@@ -198,6 +198,38 @@ app.put("/api/v1/reset-password", (req, res) => {
   res.status(501).send("Password reset not implemented yet");
 });
 
+// Middleware to verify JWT
+function authenticateJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader) {
+    const token = authHeader.split(' ')[1]; // Bearer <token>
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) {
+        return res.status(403).send("Invalid token");
+      }
+
+      req.user = user; // Attach the decoded token data (e.g., email) to the request
+      next();
+    });
+  } else {
+    res.status(401).send("Token missing or not provided");
+  }
+}
+
+// Protected route (e.g., accessing course content or secret chat)
+app.get("/api/v1/protected", authenticateJWT, (req, res) => {
+  res.status(200).send(`Welcome to the protected route, ${req.user.email}`);
+});
+
+// Protected route for secret chat
+app.get("/api/v1/chat", authenticateJWT, (req, res) => {
+  res.status(200).send(`Secret chat access granted for user: ${req.user.email}`);
+});
+
+
+
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
