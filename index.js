@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql");
+const jwt = require("jsonwebtoken");
 const path = require("path");
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -100,13 +101,16 @@ app.post("/api/v1/register", async (req, res) => {
   }
 });
 
+const JWT_SECRET = "your-very-secure-secret"; // Replace with a secure key
+
+// Login route
 app.post("/api/v1/login", (req, res) => {
   const { email, password } = req.body;
 
   console.log("Received password:", password);
 
   // Encrypt the email to match the stored encrypted email
-  const encryptedEmail = encrypt(email);
+  const encryptedEmail = encrypt(email); // Assuming encrypt is a predefined function
 
   const query = 'SELECT password FROM users WHERE email = ?';
   connection.query(query, [encryptedEmail], async (err, results) => {
@@ -126,7 +130,14 @@ app.post("/api/v1/login", (req, res) => {
 
       const match = await bcrypt.compare(password, results[0].password);
       if (match) {
-        res.status(200).send("Login successful");
+        // Generate JWT on successful login
+        const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
+
+        // Send the token to the client
+        res.status(200).json({
+          message: "Login successful",
+          token: token
+        });
       } else {
         res.status(401).send("Invalid credentials");
       }
@@ -136,6 +147,27 @@ app.post("/api/v1/login", (req, res) => {
     }
   });
 });
+
+// Middleware to verify JWT
+function authenticateJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader) {
+    const token = authHeader.split(' ')[1]; // Bearer <token>
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) {
+        return res.status(403).send("Invalid token");
+      }
+
+      req.user = user; // Attach the decoded token data (e.g., email) to the request
+      next();
+    });
+  } else {
+    res.status(401).send("Token missing or not provided");
+  }
+}
+
 
 app.put("/api/v1/reset-password", (req, res) => {
   const { email, otp, new_password } = req.body;
