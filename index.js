@@ -3,8 +3,8 @@ const cors = require("cors");
 const mysql = require("mysql");
 const jwt = require("jsonwebtoken");
 const path = require("path");
-const crypto = require("crypto");
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
@@ -222,17 +222,61 @@ function authenticateJWT(req, res, next) {
 }
 
 
-const generateOTP = () => {
-    return crypto.randomInt(10000000, 99999999).toString(); // 6-digit OTP
-};
-
-app.post("/api/v1/reset-password-otp", (req, res) => {
- const { email } = req.body;
- 
-})
-
 app.put("/api/v1/reset-password", (req, res) => {
-  const { email, otp} = req.body;
+  const { email, otp, new_password } = req.body;
+
+  res.status(501).send("Password reset not implemented yet");
+});
+
+app.post("/api/v1/request-password-reset", (req, res) => {
+  const { email } = req.body;
+
+  // Encrypt the email to match the stored encrypted email
+  const encryptedEmail = encrypt(email);
+
+  // Step 1: Check if the user exists
+  const checkUserQuery = `SELECT * FROM users WHERE email = ?`;
+  connection.query(checkUserQuery, [encryptedEmail], (err, results) => {
+    if (err) {
+      console.error('Error querying the database:', err);
+      return res.status(500).send("Error checking user existence");
+    }
+
+    // If no user is found, send an error response
+    if (results.length === 0) {
+      return res.status(404).send("Email not found");
+    }
+
+    // Step 2: Generate a 6-digit OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+
+    // Step 3: Store OTP in the database
+    const insertOtpQuery = `INSERT INTO password_resets (email, otp) VALUES (?, ?)`;
+    connection.query(insertOtpQuery, [encryptedEmail, otp], (err) => {
+      if (err) {
+        console.error('Error saving OTP:', err);
+        return res.status(500).send("Error saving OTP");
+      }
+
+      // Step 4: Send OTP via nodemailer
+      const mailOptions = {
+        from: '"Your App" <your_email@example.com>', // Sender address
+        to: email, // Recipient email
+        subject: 'Password Reset OTP', // Subject line
+        text: `Your OTP for resetting your password is: ${otp}`, // Plain text body
+      };
+
+      transporter.sendMail(mailOptions, (err, info) => {
+        if (err) {
+          console.error('Error sending OTP email:', err);
+          return res.status(500).send("Error sending OTP email");
+        }
+
+        // Success response if email is sent
+        res.status(200).send("OTP sent successfully");
+      });
+    });
+  });
 });
 
 // Middleware to verify JWT
