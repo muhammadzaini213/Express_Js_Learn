@@ -21,10 +21,10 @@ app.get("/", (req, res) => {
 });
 
 const connection = mysql.createConnection({
-  host: 'sql12.freesqldatabase.com',
-  user: 'sql12725260',
-  password: '7RLxBbNh9P',
-  database: 'sql12725260'
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
 });
 
 connection.connect((err) => {
