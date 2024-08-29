@@ -50,53 +50,76 @@ function decrypt(text) {
   decrypted += decipher.final('utf8');
   return decrypted;
 }
-
 app.post("/api/v1/register", async (req, res) => {
   const { full_name, wa_number, education, email, password } = req.body;
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const waNumberRegex = /^\d+$/;
 
+  // Validate required fields
   if (!full_name || !wa_number || !education || !email || !password) {
     res.send("Error, null credential");
     return;
   }
 
+  // Validate field lengths
   if (full_name.length > 30 || wa_number.length > 30 || education.length > 30 || email.length > 30 || password.length > 30) {
     res.send("Error, fields cannot exceed 30 characters");
     return;
   }
 
+  // Validate email format
   if (!emailRegex.test(email)) {
     res.send("Error, invalid email format");
     return;
   }
 
+  // Validate WhatsApp number (must be numeric)
   if (!waNumberRegex.test(wa_number)) {
     res.send("Error, WhatsApp number must be numeric");
     return;
   }
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const hashedNumber = await bcrypt.hash(wa_number, 10);
+    // Encrypt the email and WhatsApp number
     const encryptedEmail = encrypt(email);
+    const encryptedWaNumber = encrypt(wa_number);
 
-    const query = `INSERT INTO users (username, email, password, fullname, education, wa_number, createdAt, updatedAt) 
-                   VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`;
-
-    const values = [full_name, encryptedEmail, hashedPassword, full_name, education, hashedNumber];
-
-    connection.query(query, values, (err) => {
+    // Check if a user with the same email or WhatsApp number exists
+    const checkUserQuery = `SELECT * FROM users WHERE email = ? OR wa_number = ?`;
+    connection.query(checkUserQuery, [encryptedEmail, encryptedWaNumber], async (err, results) => {
       if (err) {
-        console.error('Error inserting data into the database:', err);
-        res.send("Error registering user");
+        console.error('Error querying the database:', err);
+        res.send("Error checking user existence");
         return;
       }
-      res.send("Registration successful");
+
+      // If a user with the same email or WhatsApp number exists, return an error
+      if (results.length > 0) {
+        res.send("Error, user with this email or WhatsApp number already exists");
+        return;
+      }
+
+      // Hash the password for secure storage
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Proceed with inserting the new user into the database
+      const insertQuery = `INSERT INTO users (username, email, password, fullname, education, wa_number, createdAt, updatedAt) 
+                           VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`;
+
+      const values = [full_name, encryptedEmail, hashedPassword, full_name, education, encryptedWaNumber];
+
+      connection.query(insertQuery, values, (err) => {
+        if (err) {
+          console.error('Error inserting data into the database:', err);
+          res.send("Error registering user");
+          return;
+        }
+        res.send("Registration successful");
+      });
     });
   } catch (err) {
-    console.error('Error hashing email or password:', err);
+    console.error('Error during registration process:', err);
     res.send("Error registering user");
   }
 });
