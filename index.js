@@ -6,6 +6,7 @@ const path = require("path");
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { generateTokens, authenticateJWT } = require('./utils/jwtUtils');
 const { encrypt, decrypt } = require('./utils/cryptoUtils');
 const connection = require('./config/db.config');
 
@@ -42,36 +43,30 @@ app.post("/api/v1/register", async (req, res) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const waNumberRegex = /^\d+$/;
 
-  // Validate required fields
   if (!full_name || !wa_number || !education || !email || !password) {
     res.send("Error, null credential");
     return;
   }
 
-  // Validate field lengths
   if (full_name.length > 30 || wa_number.length > 30 || education.length > 30 || email.length > 30 || password.length > 30) {
     res.send("Error, fields cannot exceed 30 characters");
     return;
   }
 
-  // Validate email format
   if (!emailRegex.test(email)) {
     res.send("Error, invalid email format");
     return;
   }
 
-  // Validate WhatsApp number (must be numeric)
   if (!waNumberRegex.test(wa_number)) {
     res.send("Error, WhatsApp number must be numeric");
     return;
   }
 
   try {
-    // Encrypt the email and WhatsApp number
     const encryptedEmail = encrypt(email);
     const encryptedWaNumber = encrypt(wa_number);
 
-    // Check if a user with the same email or WhatsApp number exists
     const checkUserQuery = `SELECT * FROM users WHERE email = ? OR wa_number = ?`;
     connection.query(checkUserQuery, [encryptedEmail, encryptedWaNumber], async (err, results) => {
       if (err) {
@@ -80,16 +75,13 @@ app.post("/api/v1/register", async (req, res) => {
         return;
       }
 
-      // If a user with the same email or WhatsApp number exists, return an error
       if (results.length > 0) {
         res.send("Error, user with this email or WhatsApp number already exists");
         return;
       }
 
-      // Hash the password for secure storage
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Proceed with inserting the new user into the database
       const insertQuery = `INSERT INTO users (username, email, password, fullname, education, wa_number, createdAt, updatedAt) 
                            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`;
 
@@ -110,23 +102,9 @@ app.post("/api/v1/register", async (req, res) => {
   }
 });
 
-const JWT_SECRET = process.env.JWT_SECRET; // Replace with a secure key
-
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH;
-
-
-function generateTokens(user) {
-  const accessToken = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: '15m' }); // Short-lived
-  const refreshToken = jwt.sign({ email: user.email }, JWT_REFRESH_SECRET, { expiresIn: '7d' }); // Longer-lived
-  return { accessToken, refreshToken };
-}
 
 app.post("/api/v1/login", (req, res) => {
   const { email, password } = req.body;
-
-  console.log("Received password:", password);
-
-  // Encrypt the email to match the stored encrypted email
   const encryptedEmail = encrypt(email); // Assuming encrypt is a predefined function
 
   const query = 'SELECT password FROM users WHERE email = ?';
@@ -150,7 +128,6 @@ app.post("/api/v1/login", (req, res) => {
   const accessToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ email }, JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
-  // Store refresh token and only send the response after successful update
   const storeRefreshTokenQuery = `UPDATE users SET refresh_token = ? WHERE email = ?`;
   connection.query(storeRefreshTokenQuery, [refreshToken, encryptedEmail], (err) => {
     if (err) {
@@ -158,7 +135,6 @@ app.post("/api/v1/login", (req, res) => {
       return res.status(500).send("Error logging in");  // Handle the error and exit
     }
 
-    // Send the response only after the refresh token is stored
     res.status(200).json({
       message: "Login successful",
       accessToken: accessToken,
@@ -174,27 +150,6 @@ app.post("/api/v1/login", (req, res) => {
     }
   });
 });
-
-// Middleware to verify JWT
-function authenticateJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-
-  if (authHeader) {
-    const token = authHeader.split(' ')[1]; // Bearer <token>
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (err) {
-        return res.status(403).send("Invalid token");
-      }
-
-      req.user = user; // Attach the decoded token data (e.g., email) to the request
-      next();
-    });
-  } else {
-    res.status(401).send("Token missing or not provided");
-  }
-}
-
 
 app.put("/api/v1/reset-password", (req, res) => {
   const { email, otp, new_password } = req.body;
