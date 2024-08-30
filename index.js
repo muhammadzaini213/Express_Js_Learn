@@ -6,6 +6,7 @@ const path = require("path");
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { encrypt, decrypt } = require('./utils/cryptoUtils');
 require('dotenv').config();
 
 const app = express();
@@ -48,20 +49,6 @@ connection.connect((err) => {
   console.log('Connected to the database.');
 });
 
-// Helper functions for encryption and decryption
-function encrypt(text) {
-  const cipher = crypto.createCipher('aes-256-cbc', process.env.SECRET_KEY);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  return encrypted;
-}
-
-function decrypt(text) {
-  const decipher = crypto.createDecipher('aes-256-cbc', process.env.SECRET_KEY);
-  let decrypted = decipher.update(text, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
-}
 app.post("/api/v1/register", async (req, res) => {
   const { full_name, wa_number, education, email, password } = req.body;
 
