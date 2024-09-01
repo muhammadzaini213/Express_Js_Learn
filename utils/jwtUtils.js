@@ -14,18 +14,18 @@ function authenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (authHeader) {
-    const token = authHeader.split(' ')[1]; // Be>
+    const token = authHeader.split(' ')[1]; // Bearer <token>
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
-        return res.status(403).send("Invalid toke>
+        return res.status(403).send("Invalid or expired access token");
       }
 
-      req.user = user; // Attach the decoded toke>
+      req.user = user; // Attach the decoded token data (e.g., email) to the request
       next();
     });
   } else {
-    res.status(401).send("Token missing or not pr>
+    res.status(401).send("Token missing or not provided");
   }
 }
 

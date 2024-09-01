@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const path = require("path");
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const transporter = require('./config/nodemailer.config');
 const { generateTokens, authenticateJWT } = require('./utils/jwtUtils');
 const { encrypt, decrypt } = require('./utils/cryptoUtils');
 const connection = require('./config/db.config');
@@ -17,17 +17,6 @@ const app = express();
 const corsOptions = {
   origin: "http://localhost:8081", // Set your allowed origin here
 };
-
-const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST,
-  port: process.env.MAIL_PORT,
-  secure: false, // Use `true` for port 465, `false` for all other ports
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASSWORD,
-  },
-});
-
 
 //app.use(cors(corsOptions)); // Use CORS middleware
 app.use(express.json());
@@ -93,7 +82,7 @@ app.post("/api/v1/register", async (req, res) => {
           res.send("Error registering user");
           return;
         }
-        res.send("Registration successful");
+        res.send("Registration successful, please verify your account");
       });
     });
   } catch (err) {
@@ -104,7 +93,7 @@ app.post("/api/v1/register", async (req, res) => {
 
 
 app.post("/api/v1/login", (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body;7
   const encryptedEmail = encrypt(email); // Assuming encrypt is a predefined function
 
   const query = 'SELECT password FROM users WHERE email = ?';
@@ -121,10 +110,9 @@ app.post("/api/v1/login", (req, res) => {
     }
 
     try {
-      console.log("Stored hashed password:", results[0].password);
-
       const match = await bcrypt.compare(password, results[0].password);
       if (match) {
+
   const accessToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ email }, JWT_REFRESH_SECRET, { expiresIn: '7d' });
 
@@ -207,26 +195,6 @@ app.post("/api/v1/request-password-reset", (req, res) => {
     });
   });
 });
-
-// Middleware to verify JWT
-function authenticateJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-
-  if (authHeader) {
-    const token = authHeader.split(' ')[1]; // Bearer <token>
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (err) {
-        return res.status(403).send("Invalid or expired access token");
-      }
-
-      req.user = user; // Attach the decoded token data (e.g., email) to the request
-      next();
-    });
-  } else {
-    res.status(401).send("Token missing or not provided");
-  }
-}
 
 app.post("/api/v1/refresh-token", (req, res) => {
   const { refreshToken } = req.body;
