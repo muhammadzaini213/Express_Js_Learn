@@ -18,6 +18,25 @@ const corsOptions = {
   origin: "http://localhost:8081", // Set your allowed origin here
 };
 
+const transporter = nodemailer.createTransport({
+  host: process.env.MAIL_HOST,
+  port: process.env.MAIL_PORT,
+  secure: false, // Use `true` for port 465, `false` for all other ports
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASSWORD,
+  },
+});
+
+// Verify connection configuration
+transporter.verify(function(error, success) {
+  if (error) {
+    console.log('Error connecting to mail server:', error);
+  } else {
+    console.log('Server is ready to take our messages:', success);
+  }
+});
+
 //app.use(cors(corsOptions)); // Use CORS middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
